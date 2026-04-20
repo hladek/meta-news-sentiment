@@ -14,33 +14,33 @@ EMOTION_STYLES: dict[str, dict[str, str]] = {
         "border": "#4caf50",
         "color": "#2e7d32",
         "badge_bg": "#4caf50",
-        "label": "pozitívny ✅",
+        "label": "positive ✅",
     },
     "negative": {
         "bg": "#ffebee",
         "border": "#f44336",
         "color": "#c62828",
         "badge_bg": "#f44336",
-        "label": "negatívny ❌",
+        "label": "negative ❌",
     },
     "neutral": {
         "bg": "#f5f5f5",
         "border": "#757575",
         "color": "#424242",
         "badge_bg": "#757575",
-        "label": "neutrálny ➖",
+        "label": "neutral ➖",
     },
 }
 
 SYSTEM_PROMPT = (
-    "Si asistent na analýzu sentimentu. Odpovedaj iba validným JSON objektom."
+    "You are a sentiment analysis assistant. Reply only with a valid JSON object."
 )
 
 USER_PROMPT_TEMPLATE = (
-    "Analyzuj sentiment každej vety v nasledujúcom texte. Vráť výsledok v JSON formáte "
-    "s poľom \"sentences\", kde každý objekt má \"text\" (vetu) a \"emotion\" "
-    "(positive, negative alebo neutral).\n\nText: {text}\n\n"
-    "Vráť iba JSON bez žiadneho ďalšieho textu:"
+    "Analyze the sentiment of each sentence in the following text. Return the result in JSON format "
+    "with a \"sentences\" array, where each object has \"text\" (the sentence) and \"emotion\" "
+    "(positive, negative, or neutral).\n\nText: {text}\n\n"
+    "Return only JSON with no additional text:"
 )
 
 # ── Backend ──────────────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ def get_openai_client() -> tuple[OpenAI, str]:
     ]
     if missing:
         raise RuntimeError(
-            f"Chyba konfigurácie. Nastavte premenné prostredia: {', '.join(missing)}"
+            f"Configuration error. Set the following environment variables: {', '.join(missing)}"
         )
 
     return OpenAI(api_key=api_key, base_url=base_url), model  # type: ignore[arg-type]
@@ -92,7 +92,7 @@ def _parse_json_response(response_text: str) -> dict:
             pass
 
     raise RuntimeError(
-        f"Nepodarilo sa spracovať odpoveď z modelu.\n\nRaw odpoveď: {response_text}"
+        f"Failed to parse the model response.\n\nRaw response: {response_text}"
     )
 
 
@@ -114,23 +114,23 @@ def analyze_sentiment(text: str) -> list[dict]:
         )
     except APIConnectionError:
         raise RuntimeError(
-            "Nedá sa pripojiť k OpenAI kompatibilnému API. "
-            "Skontrolujte OPENAI_BASE_URL a dostupnosť služby."
+            "Cannot connect to the OpenAI-compatible API. "
+            "Check OPENAI_BASE_URL and service availability."
         )
     except APIStatusError as e:
         raise RuntimeError(
-            f"OpenAI API vrátilo chybu (status {e.status_code}): {e.message}"
+            f"OpenAI API returned an error (status {e.status_code}): {e.message}"
         )
 
     content = response.choices[0].message.content if response.choices else None
     if not content:
-        raise RuntimeError("Model nevrátil žiadny obsah odpovede.")
+        raise RuntimeError("The model returned no response content.")
 
     result = _parse_json_response(content.strip())
 
     sentences = result.get("sentences")
     if not isinstance(sentences, list) or not sentences:
-        raise RuntimeError("Odpoveď neobsahuje pole 'sentences' alebo je prázdne.")
+        raise RuntimeError("The response does not contain a 'sentences' array or it is empty.")
 
     return sentences
 
@@ -163,43 +163,43 @@ def render_results(sentences: list[dict]) -> None:
 
     st.divider()
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("✅ Pozitívne", counts["positive"])
-    m2.metric("❌ Negatívne", counts["negative"])
-    m3.metric("➖ Neutrálne", counts["neutral"])
-    m4.metric("📝 Celkom", len(sentences))
+    m1.metric("✅ Positive", counts["positive"])
+    m2.metric("❌ Negative", counts["negative"])
+    m3.metric("➖ Neutral", counts["neutral"])
+    m4.metric("📝 Total", len(sentences))
 
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
 def main() -> None:
-    st.set_page_config(page_title="Analýza sentimentu", page_icon="🎭")
-    st.title("🎭 Analýza sentimentu")
-    st.caption("AI detekcia emócií v texte")
+    st.set_page_config(page_title="Sentiment Analysis", page_icon="🎭")
+    st.title("🎭 Sentiment Analysis")
+    st.caption("AI emotion detection in text")
 
     if "results" not in st.session_state:
         st.session_state.results = None
 
     text_input: str = st.text_area(
-        "Zadajte váš text:",
+        "Enter your text:",
         key="text_input",
-        placeholder="Napíšte alebo vložte akýkoľvek text na analýzu...",
+        placeholder="Type or paste any text to analyze...",
         height=180,
     )
 
     col1, col2 = st.columns([3, 1])
-    analyze_clicked = col1.button("🔍 Analyzovať sentiment", use_container_width=True)
+    analyze_clicked = col1.button("🔍 Analyze Sentiment", use_container_width=True)
 
-    if col2.button("🗑️ Vymazať", use_container_width=True):
+    if col2.button("🗑️ Clear", use_container_width=True):
         st.session_state.results = None
         st.session_state.pop("text_input", None)
         st.rerun()
 
     if analyze_clicked:
         if not text_input.strip():
-            st.warning("Prosím, zadajte nejaký text na analýzu.")
+            st.warning("Please enter some text to analyze.")
         else:
-            with st.spinner("Analyzujem sentiment..."):
+            with st.spinner("Analyzing sentiment..."):
                 try:
                     st.session_state.results = analyze_sentiment(text_input)
                 except RuntimeError as e:
@@ -207,7 +207,7 @@ def main() -> None:
                     st.session_state.results = None
 
     if st.session_state.results:
-        st.subheader("📊 Výsledky analýzy")
+        st.subheader("📊 Analysis Results")
         render_results(st.session_state.results)
 
 
